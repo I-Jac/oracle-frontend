@@ -151,9 +151,17 @@ async function fetchAndDisplayData() {
                     row.insertCell(2).textContent = 'Error'; // Display error in cell
                 }
 
-                row.insertCell(3).textContent = token.address;
+                // Insert Address as a clickable link
+                const addressCell = row.insertCell(3);
+                const addressLink = document.createElement('a');
+                addressLink.href = `https://solscan.io/token/${token.address}`;
+                addressLink.textContent = token.address;
+                addressLink.target = '_blank'; // Open in new tab
+                addressLink.rel = 'noopener noreferrer'; // Security best practice for target="_blank"
+                addressCell.appendChild(addressLink);
+
                 row.insertCell(4).textContent = token.priceFeedId;
-                // Remove Authority cell insertion: row.insertCell(5).textContent = token.authority;
+                // Removed Authority cell insertion
             });
         }
         lastUpdatedElement.textContent = new Date().toLocaleString();
