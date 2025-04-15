@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top 50 Tokens Oracle</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Remove CDN scripts -->
+    <!-- <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script> -->
+    <!-- <script src="https://unpkg.com/buffer@6.0.3/index.js"></script> -->
+    <!-- <script src="https://unpkg.com/@coral-xyz/anchor@0.31.0/dist/browser/index.js"></script> --> 
+</head>
+<body>
+    <header>
+        <h1>Solana Oracle - Top Tokens</h1>
+        <p>Aggregated data from program: <code id="program-id">Loading...</code></p>
+        <p>Aggregator account: <code id="aggregator-pda">Loading...</code></p>
+    </header>
+
+    <main>
+        <div class="controls">
+            <button id="refresh-button">Refresh Data</button>
+            <span id="loading-indicator" style="display: none;"> Loading...</span>
+            <p>Last Updated: <span id="last-updated">Never</span></p>
+        </div>
+        
+        <div id="error-message" class="error" style="display: none;"></div>
+
+        <table id="token-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Symbol</th>
+                    <th>Dominance</th>
+                    <th>Address</th>
+                    <th>Price Feed ID</th>
+                    <th>Authority</th> 
+                </tr>
+            </thead>
+            <tbody id="token-table-body">
+                <!-- Data will be populated here by script.js -->
+                <tr><td colspan="6">Loading data...</td></tr>
+            </tbody>
+        </table>
+    </main>
+
+    <footer>
+        <p>Using Solana Devnet</p>
+    </footer>
+
+    <!-- Update script tag -->
+    <script type="module" src="/main.js"></script>
+</body>
+</html> 
