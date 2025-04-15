@@ -7,7 +7,7 @@ window.Buffer = Buffer;
 
 // Configuration
 const SOLANA_RPC_URL = "https://api.devnet.solana.com";
-const PROGRAM_ID_STR = "EtMdPZQdHqCsbpwy6CWRmjG6kKaEu1rSW7KjRTfnGi23"; // Your program ID as string
+const PROGRAM_ID_STR = "ECQscJgjuLRXbPaYivPLjTJvqaF1LGWPNJp8LPGP5bKH"; // Your program ID as string
 const AGGREGATOR_SEED = "aggregator_v2"; // The seed used for the aggregator PDA
 
 let PROGRAM_ID = new PublicKey(PROGRAM_ID_STR);
