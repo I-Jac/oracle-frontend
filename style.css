@@ -77,8 +77,44 @@ th, td {
     border: 1px solid #ddd;
     padding: 8px;
     text-align: left;
-    word-break: break-all; /* Prevent long strings from breaking layout */
+    word-break: break-all; /* Allow long strings in other columns to break */
 }
+
+/* --- Added Styles for Column Widths --- */
+
+/* Style for '#' column (1st column) */
+#token-table th:nth-child(1),
+#token-table td:nth-child(1) {
+    width: 50px; /* Fixed width for index */
+    text-align: right; /* Align numbers to the right */
+    white-space: nowrap; /* Prevent wrapping */
+}
+
+/* Style for 'Symbol' column (2nd column) */
+#token-table th:nth-child(2),
+#token-table td:nth-child(2) {
+    min-width: 100px; /* Minimum width for symbol */
+    white-space: nowrap; /* Prevent wrapping */
+}
+
+/* Style for 'Dominance' column (3rd column) */
+#token-table th:nth-child(3),
+#token-table td:nth-child(3) {
+    min-width: 120px; /* Minimum width for percentage */
+    text-align: right; /* Align percentage to the right */
+    white-space: nowrap; /* Prevent wrapping */
+}
+
+/* Optional: Ensure Address and Price Feed can still wrap */
+#token-table th:nth-child(4),
+#token-table td:nth-child(4),
+#token-table th:nth-child(5),
+#token-table td:nth-child(5) {
+    word-break: break-all; /* Explicitly allow breaking */
+}
+
+/* --- End Added Styles --- */
+
 
 th {
     background-color: #f2f2f2;

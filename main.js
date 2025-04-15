@@ -72,11 +72,11 @@ async function fetchAndDisplayData() {
         }
 
         console.log("Account data fetched, attempting to decode...");
-        
+
         // --- Manual Decoding ---        
         // Account discriminator (8 bytes)
         const discriminator = accountInfo.data.subarray(0, 8);
-        console.log(`Discriminator (hex): ${discriminator.toString('hex')}`); 
+        console.log(`Discriminator (hex): ${discriminator.toString('hex')}`);
 
         // Authority (32 bytes)
         const authorityOffset = 8;
@@ -90,9 +90,9 @@ async function fetchAndDisplayData() {
         // NOTE: Your Rust struct AggregatedOracleData uses Vec<TokenInfo>, not Vec<AggregatedTokenInfo>
         const vecLenOffset = totalTokensOffset + 4;
         const vecLen = accountInfo.data.readUInt32LE(vecLenOffset);
-        
+
         console.log(`Decoded Header: Authority=${authorityPubkey.toBase58()}, TotalTokens=${totalTokens}, VecLen=${vecLen}`);
-        
+
         if (vecLen !== totalTokens) {
             console.warn(`Warning: Decoded vector length (${vecLen}) does not match totalTokens field (${totalTokens}). Using vecLen.`);
         }
@@ -110,7 +110,7 @@ async function fetchAndDisplayData() {
                 throw new Error(`Buffer overflow detected while reading token ${i + 1}. Expected size ${tokenInfoSize}, remaining buffer ${accountInfo.data.length - currentOffset}`);
             }
             const tokenData = accountInfo.data.subarray(currentOffset, currentOffset + tokenInfoSize);
-            
+
             const symbolBytes = tokenData.subarray(0, 10);
             const dominanceBn = new anchor.BN(tokenData.subarray(10, 18), 'le'); // Read u64 as little-endian BN
             const addressBytes = tokenData.subarray(18, 18 + 64);
@@ -119,7 +119,7 @@ async function fetchAndDisplayData() {
 
             aggregatedData.push({
                 symbol: bytesToString(symbolBytes),
-                dominance: dominanceBn.toString(), 
+                dominance: dominanceBn.toString(),
                 address: bytesToString(addressBytes),
                 priceFeedId: bytesToString(priceFeedIdBytes),
                 // lastUpdatedTimestamp: timestampBn.toString(), // Removed
@@ -133,16 +133,27 @@ async function fetchAndDisplayData() {
         // --- Display Data ---
         tokenTableBody.innerHTML = ''; // Clear previous data/loading message
         if (aggregatedData.length === 0) {
-            tokenTableBody.innerHTML = '<tr><td colspan="6">No token data found in the aggregator account.</td></tr>';
+            tokenTableBody.innerHTML = '<tr><td colspan="5">No token data found in the aggregator account.</td></tr>'; // Update colspan
         } else {
             aggregatedData.forEach((token, index) => {
                 const row = tokenTableBody.insertRow();
                 row.insertCell(0).textContent = index + 1;
                 row.insertCell(1).textContent = token.symbol;
-                row.insertCell(2).textContent = token.dominance;
+
+                // Calculate and format dominance percentage
+                try {
+                    const dominanceValue = parseFloat(token.dominance); // Convert string BN to number
+                    const dominancePercentage = (dominanceValue / 1e10) * 100; // 1e10 is 10^10
+                    // Format to 2 decimal places and add '%'
+                    row.insertCell(2).textContent = dominancePercentage.toFixed(2) + '%';
+                } catch (e) {
+                    console.error(`Error calculating dominance for token ${token.symbol}:`, e);
+                    row.insertCell(2).textContent = 'Error'; // Display error in cell
+                }
+
                 row.insertCell(3).textContent = token.address;
                 row.insertCell(4).textContent = token.priceFeedId;
-                row.insertCell(5).textContent = token.authority;
+                // Remove Authority cell insertion: row.insertCell(5).textContent = token.authority;
             });
         }
         lastUpdatedElement.textContent = new Date().toLocaleString();
@@ -150,7 +161,7 @@ async function fetchAndDisplayData() {
     } catch (error) {
         console.error("Failed to fetch or display data:", error);
         displayError(error.message || 'An unknown error occurred.');
-        tokenTableBody.innerHTML = `<tr><td colspan="6">Error loading data: ${error.message}</td></tr>`; // Show error in table too
+        tokenTableBody.innerHTML = `<tr><td colspan="5">Error loading data: ${error.message}</td></tr>`; // Update colspan
     } finally {
         loadingIndicator.style.display = 'none';
         refreshButton.disabled = false;
@@ -161,9 +172,14 @@ async function fetchAndDisplayData() {
 document.addEventListener('DOMContentLoaded', () => {
     // No need to check for global libraries anymore
     console.log("DOM Loaded.");
-    programIdElement.textContent = PROGRAM_ID.toBase58(); 
+    programIdElement.textContent = PROGRAM_ID.toBase58();
     refreshButton.addEventListener('click', fetchAndDisplayData);
 
     // Initial data load
     fetchAndDisplayData();
-}); 
+
+    // Set up auto-refresh every 5 minutes (300,000 milliseconds)
+    const refreshInterval = 5 * 60 * 1000;
+    setInterval(fetchAndDisplayData, refreshInterval);
+    console.log(`Auto-refresh enabled every ${refreshInterval / 1000 / 60} minutes.`);
+});
