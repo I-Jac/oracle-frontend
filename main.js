@@ -34,6 +34,17 @@ function clearError() {
     errorMessageElement.style.display = 'none';
 }
 
+// Helper function to create Solscan links
+function createSolscanLink(element, address, cluster = 'devnet') {
+    element.innerHTML = ''; // Clear existing content (like "Loading...")
+    const link = document.createElement('a');
+    link.href = `https://solscan.io/account/${address}?cluster=${cluster}`;
+    link.textContent = address;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    element.appendChild(link);
+}
+
 // Helper to format bytes to string (uses imported Buffer)
 function bytesToString(bytes) {
     const buffer = Buffer.from(bytes);
@@ -48,32 +59,43 @@ async function fetchAndDisplayData() {
     clearError();
     loadingIndicator.style.display = 'inline';
     refreshButton.disabled = true;
-    tokenTableBody.innerHTML = '<tr><td colspan="6">Fetching latest data...</td></tr>'; // Clear old data
+    // Don't clear table body here, wait until data is confirmed or error occurs
 
     try {
         const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+
+        // Create Program ID link once (if not already done)
+        if (!programIdElement.hasChildNodes() || programIdElement.textContent === 'Loading...') {
+            createSolscanLink(programIdElement, PROGRAM_ID.toBase58(), 'devnet');
+        }
 
         // Derive Aggregator PDA
         const [aggregatorPda] = await PublicKey.findProgramAddressSync(
             [Buffer.from(AGGREGATOR_SEED)],
             PROGRAM_ID
         );
-        aggregatorPdaElement.textContent = aggregatorPda.toBase58();
+
+        // Create Aggregator PDA link
+        createSolscanLink(aggregatorPdaElement, aggregatorPda.toBase58(), 'devnet');
         console.log(`Aggregator PDA: ${aggregatorPda.toBase58()}`);
+
 
         // Fetch account info
         const accountInfo = await connection.getAccountInfo(aggregatorPda);
 
         if (!accountInfo) {
+            tokenTableBody.innerHTML = '<tr><td colspan="5">Aggregator account not found.</td></tr>'; // Clear loading message only on error/no data
             throw new Error(`Aggregator account (${aggregatorPda.toBase58()}) not found. Has it been initialized?`);
         }
         if (accountInfo.owner.toBase58() !== PROGRAM_ID.toBase58()) {
+            tokenTableBody.innerHTML = '<tr><td colspan="5">Account owner mismatch.</td></tr>';
             throw new Error(`Account owner (${accountInfo.owner.toBase58()}) does not match program ID.`);
         }
 
         console.log("Account data fetched, attempting to decode...");
+        tokenTableBody.innerHTML = '<tr><td colspan="5">Decoding data...</td></tr>'; // Update status
 
-        // --- Manual Decoding ---        
+        // --- Manual Decoding ---
         // Account discriminator (8 bytes)
         const discriminator = accountInfo.data.subarray(0, 8);
         console.log(`Discriminator (hex): ${discriminator.toString('hex')}`);
@@ -86,7 +108,7 @@ async function fetchAndDisplayData() {
         const totalTokensOffset = authorityOffset + 32;
         const totalTokens = accountInfo.data.readUInt32LE(totalTokensOffset);
 
-        // Vec<TokenInfo> length (u32, 4 bytes, little-endian) 
+        // Vec<TokenInfo> length (u32, 4 bytes, little-endian)
         // NOTE: Your Rust struct AggregatedOracleData uses Vec<TokenInfo>, not Vec<AggregatedTokenInfo>
         const vecLenOffset = totalTokensOffset + 4;
         const vecLen = accountInfo.data.readUInt32LE(vecLenOffset);
@@ -123,7 +145,7 @@ async function fetchAndDisplayData() {
                 address: bytesToString(addressBytes),
                 priceFeedId: bytesToString(priceFeedIdBytes),
                 // lastUpdatedTimestamp: timestampBn.toString(), // Removed
-                authority: authorityPubkey.toBase58() // Add authority for display
+                authority: authorityPubkey.toBase58() // Keep authority internally if needed later, just not displayed
             });
             currentOffset += tokenInfoSize;
         }
@@ -133,7 +155,7 @@ async function fetchAndDisplayData() {
         // --- Display Data ---
         tokenTableBody.innerHTML = ''; // Clear previous data/loading message
         if (aggregatedData.length === 0) {
-            tokenTableBody.innerHTML = '<tr><td colspan="5">No token data found in the aggregator account.</td></tr>'; // Update colspan
+            tokenTableBody.innerHTML = '<tr><td colspan="5">No token data found in the aggregator account.</td></tr>';
         } else {
             aggregatedData.forEach((token, index) => {
                 const row = tokenTableBody.insertRow();
@@ -151,16 +173,26 @@ async function fetchAndDisplayData() {
                     row.insertCell(2).textContent = 'Error'; // Display error in cell
                 }
 
-                // Insert Address as a clickable link
+                // Insert Address as a clickable link (points to token address)
                 const addressCell = row.insertCell(3);
                 const addressLink = document.createElement('a');
-                addressLink.href = `https://solscan.io/token/${token.address}`;
+                // Link to token page on Solscan Devnet
+                addressLink.href = `https://solscan.io/token/${token.address}?cluster=devnet`;
                 addressLink.textContent = token.address;
                 addressLink.target = '_blank'; // Open in new tab
                 addressLink.rel = 'noopener noreferrer'; // Security best practice for target="_blank"
                 addressCell.appendChild(addressLink);
 
-                row.insertCell(4).textContent = token.priceFeedId;
+                // Insert Price Feed ID as a clickable link (points to account address)
+                const priceFeedCell = row.insertCell(4);
+                const priceFeedLink = document.createElement('a');
+                // Link to account page on Solscan Devnet
+                priceFeedLink.href = `https://solscan.io/account/${token.priceFeedId}?cluster=devnet`;
+                priceFeedLink.textContent = token.priceFeedId;
+                priceFeedLink.target = '_blank';
+                priceFeedLink.rel = 'noopener noreferrer';
+                priceFeedCell.appendChild(priceFeedLink);
+
                 // Removed Authority cell insertion
             });
         }
@@ -169,7 +201,10 @@ async function fetchAndDisplayData() {
     } catch (error) {
         console.error("Failed to fetch or display data:", error);
         displayError(error.message || 'An unknown error occurred.');
-        tokenTableBody.innerHTML = `<tr><td colspan="5">Error loading data: ${error.message}</td></tr>`; // Update colspan
+        // Ensure table body shows error if it hasn't been set yet
+        if (tokenTableBody.innerHTML.includes('Decoding data...') || tokenTableBody.innerHTML === '') {
+            tokenTableBody.innerHTML = `<tr><td colspan="5">Error loading data: ${error.message}</td></tr>`; // Update colspan
+        }
     } finally {
         loadingIndicator.style.display = 'none';
         refreshButton.disabled = false;
@@ -178,9 +213,8 @@ async function fetchAndDisplayData() {
 
 // Initial Setup and Event Listener
 document.addEventListener('DOMContentLoaded', () => {
-    // No need to check for global libraries anymore
     console.log("DOM Loaded.");
-    programIdElement.textContent = PROGRAM_ID.toBase58();
+    // Removed programIdElement.textContent = PROGRAM_ID.toBase58();
     refreshButton.addEventListener('click', fetchAndDisplayData);
 
     // Initial data load
