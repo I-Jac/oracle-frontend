@@ -166,32 +166,25 @@ async function fetchAndDisplayData() {
                 try {
                     const dominanceValue = parseFloat(token.dominance); // Convert string BN to number
                     const dominancePercentage = (dominanceValue / 1e10) * 100; // 1e10 is 10^10
-                    // Format to 2 decimal places and add '%'
                     row.insertCell(2).textContent = dominancePercentage.toFixed(2) + '%';
                 } catch (e) {
                     console.error(`Error calculating dominance for token ${token.symbol}:`, e);
                     row.insertCell(2).textContent = 'Error'; // Display error in cell
                 }
 
-                // Insert Address as a clickable link (points to token address)
+                // Insert Address as a clickable link (points to token page on mainnet)
                 const addressCell = row.insertCell(3);
                 const addressLink = document.createElement('a');
-                // Link to token page on Solscan Devnet
-                addressLink.href = `https://solscan.io/token/${token.address}?cluster=devnet`;
+                // Corrected Link: Use /token/ path and cluster=mainnet
+                addressLink.href = `https://solscan.io/token/${token.address}?cluster=mainnet`;
                 addressLink.textContent = token.address;
                 addressLink.target = '_blank'; // Open in new tab
                 addressLink.rel = 'noopener noreferrer'; // Security best practice for target="_blank"
                 addressCell.appendChild(addressLink);
 
-                // Insert Price Feed ID as a clickable link (points to account address)
+                // Insert Price Feed ID as plain text (no link)
                 const priceFeedCell = row.insertCell(4);
-                const priceFeedLink = document.createElement('a');
-                // Link to account page on Solscan Devnet
-                priceFeedLink.href = `https://solscan.io/account/${token.priceFeedId}?cluster=devnet`;
-                priceFeedLink.textContent = token.priceFeedId;
-                priceFeedLink.target = '_blank';
-                priceFeedLink.rel = 'noopener noreferrer';
-                priceFeedCell.appendChild(priceFeedLink);
+                priceFeedCell.textContent = token.priceFeedId; // Just display the ID
 
                 // Removed Authority cell insertion
             });
