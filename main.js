@@ -152,6 +152,25 @@ async function fetchAndDisplayData() {
 
         console.log(`Successfully decoded ${aggregatedData.length} tokens.`);
 
+        // --- Calculate Total Dominance ---
+        let totalDominanceBN = new anchor.BN(0);
+        if (aggregatedData.length > 0) {
+            try {
+                totalDominanceBN = aggregatedData.reduce((sum, token) => {
+                    // Add null/error check for token.dominance if necessary
+                    try {
+                        return sum.add(new anchor.BN(token.dominance));
+                    } catch (e) {
+                        console.error(`Error parsing dominance BN for token ${token.symbol}: ${token.dominance}`, e);
+                        return sum; // Skip this token if dominance is invalid
+                    }
+                }, new anchor.BN(0));
+            } catch (e) {
+                 console.error("Error summing dominance values:", e);
+                 // totalDominanceBN remains 0 if reduce fails
+            }
+        }
+
         // --- Display Data ---
         tokenTableBody.innerHTML = ''; // Clear previous data/loading message
         if (aggregatedData.length === 0) {
@@ -190,6 +209,27 @@ async function fetchAndDisplayData() {
                 // Removed Authority cell insertion
             });
         }
+
+        // --- Display Total Dominance ---
+        const totalDominanceCell = document.getElementById('total-dominance-cell');
+        if (totalDominanceCell) {
+            try {
+                // Convert the total BN to a number for calculation.
+                // Use parseFloat for potentially large numbers, though precision limits still apply.
+                const totalDominanceValue = parseFloat(totalDominanceBN.toString());
+                 if (isNaN(totalDominanceValue)) {
+                    throw new Error("Total dominance calculation resulted in NaN");
+                }
+                const totalDominancePercentage = (totalDominanceValue / 1e10) * 100;
+                totalDominanceCell.textContent = totalDominancePercentage.toFixed(3) + '%';
+            } catch (e) {
+                console.error("Error calculating or displaying total dominance:", e);
+                totalDominanceCell.textContent = 'Error';
+            }
+        } else {
+            console.warn("Total dominance cell not found.");
+        }
+
         lastUpdatedElement.textContent = new Date().toLocaleString();
 
     } catch (error) {
