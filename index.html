@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top 50 Tokens Oracle</title>
+    <title>Top 50 Tokens Oracle</title>
     <!-- Remove CDN scripts -->
     <!-- <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script> -->
     <!-- <script src="https://unpkg.com/buffer@6.0.3/index.js"></script> -->
     <!-- <script src="https://unpkg.com/@coral-xyz/anchor@0.31.0/dist/browser/index.js"></script> -->
-  <script type="module" crossorigin src="/oracle-frontend/assets/index-Cyxi2d5R.js"></script>
-  <link rel="stylesheet" crossorigin href="/oracle-frontend/assets/index-Czycwxrf.css">
+  <script type="module" crossorigin src="/oracle-frontend/assets/index-Baz0gJpI.js"></script>
+  <link rel="stylesheet" crossorigin href="/oracle-frontend/assets/index-DiCLCEHe.css">
 </head>
 
 <body>
@@ -51,6 +51,13 @@
                     <td colspan="5">Loading data...</td>
                 </tr> <!-- Update colspan -->
             </tbody>
+            <!-- Add Table Footer for Totals -->
+            <tfoot id="token-table-footer">
+                 <tr>
+                     <td colspan="2" style="text-align: right; font-weight: bold;">Total Dominance:</td>
+                     <td id="total-dominance-cell" style="text-align: right; font-weight: bold;" colspan="3">Calculating...</td> <!-- Span remaining 3 columns -->
+                 </tr>
+             </tfoot>
         </table>
     </main>
 
@@ -58,7 +65,7 @@
         <p>Using Solana Devnet</p>
     </footer>
 
-    <!-- Update script tag -->
+    <!-- Update script tag -->
 </body>
 
 </html>
