@@ -9,8 +9,8 @@
     <!-- <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script> -->
     <!-- <script src="https://unpkg.com/buffer@6.0.3/index.js"></script> -->
     <!-- <script src="https://unpkg.com/@coral-xyz/anchor@0.31.0/dist/browser/index.js"></script> -->
-  <script type="module" crossorigin src="/oracle-frontend/assets/index-Baz0gJpI.js"></script>
-  <link rel="stylesheet" crossorigin href="/oracle-frontend/assets/index-DiCLCEHe.css">
+  <script type="module" crossorigin src="/oracle-frontend/assets/index-BID2AVo9.js"></script>
+  <link rel="stylesheet" crossorigin href="/oracle-frontend/assets/index-DuWElGSA.css">
 </head>
 
 <body>
@@ -29,36 +29,39 @@
 
         <div id="error-message" class="error" style="display: none;"></div>
 
-        <table id="token-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Symbol</th>
-                    <th>Dominance</th>
-                    <th>Address</th>
-                    <!-- Updated Price Feed ID Header -->
-                    <th>
-                        <a href="https://www.pyth.network/developers/price-feed-ids" target="_blank"
-                            rel="noopener noreferrer">
-                            Price Feed ID
-                        </a>
-                    </th>
-                </tr>
-            </thead>
-            <tbody id="token-table-body">
-                <!-- Data will be populated here by script.js -->
-                <tr>
-                    <td colspan="5">Loading data...</td>
-                </tr> <!-- Update colspan -->
-            </tbody>
-            <!-- Add Table Footer for Totals -->
-            <tfoot id="token-table-footer">
-                 <tr>
-                     <td colspan="2" style="text-align: right; font-weight: bold;">Total Dominance:</td>
-                     <td id="total-dominance-cell" style="text-align: right; font-weight: bold;" colspan="3">Calculating...</td> <!-- Span remaining 3 columns -->
-                 </tr>
-             </tfoot>
-        </table>
+        <!-- Add a wrapper for horizontal scrolling -->
+        <div class="table-container">
+            <table id="token-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Symbol</th>
+                        <th>Dominance</th>
+                        <th>Address</th>
+                        <!-- Updated Price Feed ID Header -->
+                        <th>
+                            <a href="https://www.pyth.network/developers/price-feed-ids" target="_blank"
+                                rel="noopener noreferrer">
+                                Price Feed ID
+                            </a>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="token-table-body">
+                    <!-- Data will be populated here by script.js -->
+                    <tr>
+                        <td colspan="5">Loading data...</td>
+                    </tr> <!-- Update colspan -->
+                </tbody>
+                <!-- Add Table Footer for Totals -->
+                <tfoot id="token-table-footer">
+                     <tr>
+                         <td colspan="2" style="text-align: right; font-weight: bold;">Total Dominance:</td>
+                         <td id="total-dominance-cell" style="text-align: right; font-weight: bold;" colspan="3">Calculating...</td> <!-- Span remaining 3 columns -->
+                     </tr>
+                 </tfoot>
+            </table>
+        </div> <!-- End table-container -->
     </main>
 
     <footer>
