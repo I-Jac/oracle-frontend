@@ -166,7 +166,8 @@ async function fetchAndDisplayData() {
                 try {
                     const dominanceValue = parseFloat(token.dominance); // Convert string BN to number
                     const dominancePercentage = (dominanceValue / 1e10) * 100; // 1e10 is 10^10
-                    row.insertCell(2).textContent = dominancePercentage.toFixed(2) + '%';
+                    // Format to 3 decimal places and add '%'
+                    row.insertCell(2).textContent = dominancePercentage.toFixed(3) + '%'; // Changed from toFixed(2) to toFixed(3)
                 } catch (e) {
                     console.error(`Error calculating dominance for token ${token.symbol}:`, e);
                     row.insertCell(2).textContent = 'Error'; // Display error in cell
