@@ -124,8 +124,9 @@ async function fetchAndDisplayData() {
         let currentOffset = dataOffset;
         const aggregatedData = [];
 
-        // Size of TokenInfo (not AggregatedTokenInfo)
-        const tokenInfoSize = 10 + 8 + 64 + 64; // symbol(10) + dominance(8) + address(64) + price_feed_id(64)
+        // --- Updated Size of TokenInfo ---
+        // symbol(10) + dominance(u64, 8) + address(PublicKey, 32) + price_feed_id(PublicKey, 32)
+        const tokenInfoSize = 10 + 8 + 32 + 32; // New size: 82 bytes
 
         for (let i = 0; i < vecLen; i++) {
             if (currentOffset + tokenInfoSize > accountInfo.data.length) {
@@ -133,21 +134,27 @@ async function fetchAndDisplayData() {
             }
             const tokenData = accountInfo.data.subarray(currentOffset, currentOffset + tokenInfoSize);
 
+            // symbol: First 10 bytes
             const symbolBytes = tokenData.subarray(0, 10);
-            const dominanceBn = new anchor.BN(tokenData.subarray(10, 18), 'le'); // Read u64 as little-endian BN
-            const addressBytes = tokenData.subarray(18, 18 + 64);
-            const priceFeedIdBytes = tokenData.subarray(18 + 64, 18 + 64 + 64);
-            // Removed timestamp decoding as it's not in TokenInfo
+            // dominance: Next 8 bytes (offset 10)
+            const dominanceBn = new anchor.BN(tokenData.subarray(10, 10 + 8), 'le');
+            // address: Next 32 bytes (offset 18)
+            const addressBytes = tokenData.subarray(18, 18 + 32);
+            // price_feed_id: Next 32 bytes (offset 50)
+            const priceFeedIdBytes = tokenData.subarray(50, 50 + 32);
+
+            // --- Decode PublicKeys correctly ---
+            const addressPubkey = new PublicKey(addressBytes);
+            const priceFeedIdPubkey = new PublicKey(priceFeedIdBytes);
 
             aggregatedData.push({
-                symbol: bytesToString(symbolBytes),
+                symbol: bytesToString(symbolBytes), // Still use bytesToString for symbol
                 dominance: dominanceBn.toString(),
-                address: bytesToString(addressBytes),
-                priceFeedId: bytesToString(priceFeedIdBytes),
-                // lastUpdatedTimestamp: timestampBn.toString(), // Removed
-                authority: authorityPubkey.toBase58() // Keep authority internally if needed later, just not displayed
+                address: addressPubkey.toBase58(), // Use .toBase58()
+                priceFeedId: priceFeedIdPubkey.toBase58(), // Use .toBase58()
+                authority: authorityPubkey.toBase58()
             });
-            currentOffset += tokenInfoSize;
+            currentOffset += tokenInfoSize; // Use the new size
         }
 
         console.log(`Successfully decoded ${aggregatedData.length} tokens.`);
@@ -166,8 +173,7 @@ async function fetchAndDisplayData() {
                 try {
                     const dominanceValue = parseFloat(token.dominance); // Convert string BN to number
                     const dominancePercentage = (dominanceValue / 1e10) * 100; // 1e10 is 10^10
-                    // Format to 3 decimal places and add '%'
-                    row.insertCell(2).textContent = dominancePercentage.toFixed(3) + '%'; // Changed from toFixed(2) to toFixed(3)
+                    row.insertCell(2).textContent = dominancePercentage.toFixed(3) + '%'; // 3 decimal places
                 } catch (e) {
                     console.error(`Error calculating dominance for token ${token.symbol}:`, e);
                     row.insertCell(2).textContent = 'Error'; // Display error in cell
@@ -176,18 +182,16 @@ async function fetchAndDisplayData() {
                 // Insert Address as a clickable link (points to token page on mainnet)
                 const addressCell = row.insertCell(3);
                 const addressLink = document.createElement('a');
-                // Corrected Link: Use /token/ path and cluster=mainnet
-                addressLink.href = `https://solscan.io/token/${token.address}?cluster=mainnet`;
-                addressLink.textContent = token.address;
-                addressLink.target = '_blank'; // Open in new tab
-                addressLink.rel = 'noopener noreferrer'; // Security best practice for target="_blank"
+                addressLink.href = `https://solscan.io/token/${token.address}?cluster=mainnet`; // Link uses the base58 string
+                addressLink.textContent = token.address; // Display the base58 string
+                addressLink.target = '_blank';
+                addressLink.rel = 'noopener noreferrer';
                 addressCell.appendChild(addressLink);
 
-                // Insert Price Feed ID as plain text (no link)
+                // Insert Price Feed ID as plain text
                 const priceFeedCell = row.insertCell(4);
-                priceFeedCell.textContent = token.priceFeedId; // Just display the ID
+                priceFeedCell.textContent = token.priceFeedId; // Display the base58 string
 
-                // Removed Authority cell insertion
             });
         }
         lastUpdatedElement.textContent = new Date().toLocaleString();
