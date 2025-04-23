@@ -105,11 +105,17 @@ th, td {
     white-space: nowrap; /* Prevent wrapping */
 }
 
-/* Optional: Ensure Address and Price Feed can still wrap */
+/* Style for 'Address' column (4th column) */
 #token-table th:nth-child(4),
-#token-table td:nth-child(4),
+#token-table td:nth-child(4) {
+     min-width: 250px; /* Allow more space initially */
+     word-break: break-all; /* Allow breaking */
+}
+
+/* Style for 'Price Feed ID' column (5th column) */
 #token-table th:nth-child(5),
 #token-table td:nth-child(5) {
+    min-width: 250px; /* Allow more space initially */
     word-break: break-all; /* Explicitly allow breaking */
 }
 
@@ -124,9 +130,56 @@ tbody tr:nth-child(even) {
     background-color: #f9f9f9;
 }
 
+/* --- Added Styles for Table Footer --- */
+tfoot tr {
+    background-color: #e9e9e9; /* Slightly darker background for footer */
+    border-top: 2px solid #ccc; /* Add a separator line */
+}
+
+tfoot td {
+    font-weight: bold; /* Make footer text bold */
+    /* text-align is set inline in HTML for specific cells */
+}
+/* --- End Added Styles --- */
+
 footer {
     text-align: center;
     margin-top: 2rem;
     padding: 1rem;
     color: #777;
-} 
+}
+
+/* --- Responsive Styles --- */
+.table-container {
+    width: 100%; /* Ensure container takes full width */
+    overflow-x: auto; /* Enable horizontal scrolling */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Apply styles for smaller screens (e.g., less than 768px) */
+@media (max-width: 768px) {
+    main {
+        padding: 0.5rem; /* Reduce padding on small screens */
+    }
+
+    table {
+        /* Ensure table itself doesn't shrink below content width */
+        min-width: 700px; /* Example: Adjust based on desired column widths */
+    }
+
+    th, td {
+        white-space: nowrap; /* Prevent wrapping inside cells */
+        padding: 6px; /* Slightly reduce padding */
+    }
+
+    /* Re-adjust min-widths for scrolling */
+    #token-table th:nth-child(4),
+    #token-table td:nth-child(4),
+    #token-table th:nth-child(5),
+    #token-table td:nth-child(5) {
+        min-width: 200px; /* Set a reasonable min-width for address/ID */
+        word-break: normal; /* Override break-all for nowrap */
+    }
+}
+
+/* --- End Responsive Styles --- */ 
