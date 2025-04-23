@@ -123,10 +123,11 @@ async function fetchAndDisplayData() {
         const dataOffset = vecLenOffset + 4;
         let currentOffset = dataOffset;
         const aggregatedData = [];
+        let totalDominanceBN = new anchor.BN(0); // 1. Initialize total dominance accumulator
 
-        // --- Updated Size of TokenInfo ---
-        // symbol(10) + dominance(u64, 8) + address(PublicKey, 32) + price_feed_id(PublicKey, 32)
-        const tokenInfoSize = 10 + 8 + 32 + 32; // New size: 82 bytes
+        // --- Size of TokenInfo based on NEW serialization ---
+        // symbol(10) + dominance(u64, 8) + address(string padded, 64) + price_feed_id(PublicKey padded, 64)
+        const tokenInfoSize = 10 + 8 + 64 + 64; // Back to 146 bytes
 
         for (let i = 0; i < vecLen; i++) {
             if (currentOffset + tokenInfoSize > accountInfo.data.length) {
@@ -138,47 +139,31 @@ async function fetchAndDisplayData() {
             const symbolBytes = tokenData.subarray(0, 10);
             // dominance: Next 8 bytes (offset 10)
             const dominanceBn = new anchor.BN(tokenData.subarray(10, 10 + 8), 'le');
-            // address: Next 32 bytes (offset 18)
-            const addressBytes = tokenData.subarray(18, 18 + 32);
-            // price_feed_id: Next 32 bytes (offset 50)
-            const priceFeedIdBytes = tokenData.subarray(50, 50 + 32);
+            // address: Next 64 bytes (offset 18) - Decode as padded string
+            const addressBytes64 = tokenData.subarray(18, 18 + 64);
+            // price_feed_id: Next 64 bytes (offset 18 + 64 = 82) - Decode as padded PublicKey
+            const priceFeedIdBytes64 = tokenData.subarray(82, 82 + 64);
 
-            // --- Decode PublicKeys correctly ---
-            const addressPubkey = new PublicKey(addressBytes);
-            const priceFeedIdPubkey = new PublicKey(priceFeedIdBytes);
+            // --- Decode Address (padded string) and PriceFeedID (padded PublicKey) ---
+            const addressString = bytesToString(addressBytes64); // Use original bytesToString
+            // Take only the first 32 bytes of the 64-byte PriceFeedID slice
+            const priceFeedIdPubkey = new PublicKey(priceFeedIdBytes64.subarray(0, 32));
+
+            totalDominanceBN = totalDominanceBN.add(dominanceBn);
 
             aggregatedData.push({
-                symbol: bytesToString(symbolBytes), // Still use bytesToString for symbol
+                symbol: bytesToString(symbolBytes),
                 dominance: dominanceBn.toString(),
-                address: addressPubkey.toBase58(), // Use .toBase58()
-                priceFeedId: priceFeedIdPubkey.toBase58(), // Use .toBase58()
+                address: addressString, // Use the string decoded from 64 bytes
+                priceFeedId: priceFeedIdPubkey.toBase58(), // Use .toBase58() on the key from the first 32 bytes
                 authority: authorityPubkey.toBase58()
             });
-            currentOffset += tokenInfoSize; // Use the new size
+            currentOffset += tokenInfoSize; // Use the updated size (146)
         }
 
         console.log(`Successfully decoded ${aggregatedData.length} tokens.`);
 
-        // --- Calculate Total Dominance ---
-        let totalDominanceBN = new anchor.BN(0);
-        if (aggregatedData.length > 0) {
-            try {
-                totalDominanceBN = aggregatedData.reduce((sum, token) => {
-                    // Add null/error check for token.dominance if necessary
-                    try {
-                        return sum.add(new anchor.BN(token.dominance));
-                    } catch (e) {
-                        console.error(`Error parsing dominance BN for token ${token.symbol}: ${token.dominance}`, e);
-                        return sum; // Skip this token if dominance is invalid
-                    }
-                }, new anchor.BN(0));
-            } catch (e) {
-                 console.error("Error summing dominance values:", e);
-                 // totalDominanceBN remains 0 if reduce fails
-            }
-        }
-
-        // --- Display Data ---
+        // --- Display Data --- (No changes needed below this line for this fix)
         tokenTableBody.innerHTML = ''; // Clear previous data/loading message
         if (aggregatedData.length === 0) {
             tokenTableBody.innerHTML = '<tr><td colspan="5">No token data found in the aggregator account.</td></tr>';
@@ -219,9 +204,8 @@ async function fetchAndDisplayData() {
         if (totalDominanceCell) {
             try {
                 // Convert the total BN to a number for calculation.
-                // Use parseFloat for potentially large numbers, though precision limits still apply.
                 const totalDominanceValue = parseFloat(totalDominanceBN.toString());
-                 if (isNaN(totalDominanceValue)) {
+                if (isNaN(totalDominanceValue)) {
                     throw new Error("Total dominance calculation resulted in NaN");
                 }
                 const totalDominancePercentage = (totalDominanceValue / 1e10) * 100;
