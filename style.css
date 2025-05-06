@@ -119,6 +119,14 @@ th, td {
     word-break: break-all; /* Explicitly allow breaking */
 }
 
+/* Style for 'Timestamp' column (6th column) */
+#token-table th:nth-child(6),
+#token-table td:nth-child(6) {
+    min-width: 130px; /* Adjust as needed */
+    white-space: normal; /* Allow wrapping for the <br> tag */
+    text-align: left;
+}
+
 /* --- End Added Styles --- */
 
 

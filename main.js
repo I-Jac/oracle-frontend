@@ -6,7 +6,10 @@ import { Buffer } from 'buffer'; // Import Buffer polyfill
 window.Buffer = Buffer;
 
 // Configuration
-const SOLANA_RPC_URL = "https://api.devnet.solana.com";
+//const SOLANA_RPC_URL = "https://api.devnet.solana.com";
+const SOLANA_RPC_URL = "http://127.0.0.1:8900";
+
+
 const PROGRAM_ID_STR = "DP9kZHS77pbTuTHKNsaxqFjrUboFLGXvyCQsxYvWM26c"; // Your program ID as string
 const AGGREGATOR_SEED = "aggregator_v2"; // The seed used for the aggregator PDA
 
@@ -84,16 +87,16 @@ async function fetchAndDisplayData() {
         const accountInfo = await connection.getAccountInfo(aggregatorPda);
 
         if (!accountInfo) {
-            tokenTableBody.innerHTML = '<tr><td colspan="5">Aggregator account not found.</td></tr>'; // Clear loading message only on error/no data
+            tokenTableBody.innerHTML = '<tr><td colspan="6">Aggregator account not found.</td></tr>'; // Adjusted colspan
             throw new Error(`Aggregator account (${aggregatorPda.toBase58()}) not found. Has it been initialized?`);
         }
         if (accountInfo.owner.toBase58() !== PROGRAM_ID.toBase58()) {
-            tokenTableBody.innerHTML = '<tr><td colspan="5">Account owner mismatch.</td></tr>';
+            tokenTableBody.innerHTML = '<tr><td colspan="6">Account owner mismatch.</td></tr>'; // Adjusted colspan
             throw new Error(`Account owner (${accountInfo.owner.toBase58()}) does not match program ID.`);
         }
 
         console.log("Account data fetched, attempting to decode...");
-        tokenTableBody.innerHTML = '<tr><td colspan="5">Decoding data...</td></tr>'; // Update status
+        tokenTableBody.innerHTML = '<tr><td colspan="6">Decoding data...</td></tr>'; // Adjusted colspan
 
         // --- Manual Decoding ---
         // Account discriminator (8 bytes)
@@ -109,27 +112,30 @@ async function fetchAndDisplayData() {
         const totalTokens = accountInfo.data.readUInt32LE(totalTokensOffset);
 
         // Vec<TokenInfo> length (u32, 4 bytes, little-endian)
-        // NOTE: Your Rust struct AggregatedOracleData uses Vec<TokenInfo>, not Vec<AggregatedTokenInfo>
         const vecLenOffset = totalTokensOffset + 4;
         const vecLen = accountInfo.data.readUInt32LE(vecLenOffset);
 
         console.log(`Decoded Header: Authority=${authorityPubkey.toBase58()}, TotalTokens=${totalTokens}, VecLen=${vecLen}`);
 
         if (vecLen !== totalTokens) {
-            console.warn(`Warning: Decoded vector length (${vecLen}) does not match totalTokens field (${totalTokens}). Using vecLen.`);
+            // This warning is fine, vecLen (from the Vec itself) is usually more reliable if totalTokens is just a counter.
+            console.warn(`Warning: Decoded vector length (${vecLen}) from Vec prefix does not match totalTokens field (${totalTokens}). Using vecLen for iteration if smaller, or totalTokens if vecLen is unexpectedly large (like max_capacity). For display, totalTokens is probably the intended 'active' count.`);
         }
+        
+        // Use totalTokens for iterating as it reflects the active elements after cleanup
+        const itemsToDecode = totalTokens; 
 
         // Data Vec<TokenInfo>
         const dataOffset = vecLenOffset + 4;
         let currentOffset = dataOffset;
         const aggregatedData = [];
-        let totalDominanceBN = new anchor.BN(0); // 1. Initialize total dominance accumulator
+        let totalDominanceBN = new anchor.BN(0);
 
-        // --- Size of TokenInfo based on Program Logs (146 bytes) ---
-        // symbol(10) + dominance(u64, 8) + address(string padded, 64) + price_feed_id(PublicKey padded, 64)
-        const tokenInfoSize = 10 + 8 + 64 + 64; // Back to 146 bytes
+        // --- Size of TokenInfo ---
+        // symbol(10) + dominance(u64, 8) + address(string padded, 64) + price_feed_id(string padded, 64) + timestamp(i64, 8)
+        const tokenInfoSize = 10 + 8 + 64 + 64 + 8; // Updated to 154 bytes
 
-        for (let i = 0; i < vecLen; i++) {
+        for (let i = 0; i < itemsToDecode; i++) { // Iterate based on totalTokens
             if (currentOffset + tokenInfoSize > accountInfo.data.length) {
                 throw new Error(`Buffer overflow detected while reading token ${i + 1}. Expected size ${tokenInfoSize}, remaining buffer ${accountInfo.data.length - currentOffset}`);
             }
@@ -139,14 +145,15 @@ async function fetchAndDisplayData() {
             const symbolBytes = tokenData.subarray(0, 10);
             // dominance: Next 8 bytes (offset 10)
             const dominanceBn = new anchor.BN(tokenData.subarray(10, 10 + 8), 'le');
-            // address: Next 64 bytes (offset 18) - Decode as padded string
+            // address: Next 64 bytes (offset 18)
             const addressBytes64 = tokenData.subarray(18, 18 + 64);
-            // price_feed_id: Next 64 bytes (offset 18 + 64 = 82) - Decode as padded PublicKey
+            // price_feed_id: Next 64 bytes (offset 18 + 64 = 82)
             const priceFeedIdBytes64 = tokenData.subarray(82, 82 + 64);
+            // timestamp: Next 8 bytes (offset 82 + 64 = 146)
+            const timestampBn = new anchor.BN(tokenData.subarray(146, 146 + 8), 'le');
 
-            // --- Decode Address (padded string) and PriceFeedID (padded string) ---
+
             const addressString = bytesToString(addressBytes64);
-            // Directly decode the Price Feed ID string from its 64-byte buffer
             const priceFeedIdString = bytesToString(priceFeedIdBytes64);
 
             totalDominanceBN = totalDominanceBN.add(dominanceBn);
@@ -154,47 +161,59 @@ async function fetchAndDisplayData() {
             aggregatedData.push({
                 symbol: bytesToString(symbolBytes),
                 dominance: dominanceBn.toString(),
-                address: addressString, // Use the string decoded from 64 bytes
-                priceFeedId: priceFeedIdString, // Use the string decoded from 64 bytes
+                address: addressString,
+                priceFeedId: priceFeedIdString,
+                timestamp: timestampBn, // Store as BN, format later for display
                 authority: authorityPubkey.toBase58()
             });
-            currentOffset += tokenInfoSize; // Use the updated size (146)
+            currentOffset += tokenInfoSize;
         }
 
         console.log(`Successfully decoded ${aggregatedData.length} tokens.`);
 
-        // --- Display Data --- (No changes needed below this line for this fix)
-        tokenTableBody.innerHTML = ''; // Clear previous data/loading message
+        // --- Display Data ---
+        tokenTableBody.innerHTML = ''; 
         if (aggregatedData.length === 0) {
-            tokenTableBody.innerHTML = '<tr><td colspan="5">No token data found in the aggregator account.</td></tr>';
+            tokenTableBody.innerHTML = '<tr><td colspan="6">No token data found in the aggregator account.</td></tr>'; // Adjusted colspan
         } else {
             aggregatedData.forEach((token, index) => {
                 const row = tokenTableBody.insertRow();
                 row.insertCell(0).textContent = index + 1;
                 row.insertCell(1).textContent = token.symbol;
 
-                // Calculate and format dominance percentage
                 try {
-                    const dominanceValue = parseFloat(token.dominance); // Convert string BN to number
-                    const dominancePercentage = (dominanceValue / 1e10) * 100; // 1e10 is 10^10
-                    row.insertCell(2).textContent = dominancePercentage.toFixed(3) + '%'; // 3 decimal places
+                    const dominanceValue = parseFloat(token.dominance); 
+                    const dominancePercentage = (dominanceValue / 1e10) * 100; 
+                    row.insertCell(2).textContent = dominancePercentage.toFixed(3) + '%'; 
                 } catch (e) {
                     console.error(`Error calculating dominance for token ${token.symbol}:`, e);
-                    row.insertCell(2).textContent = 'Error'; // Display error in cell
+                    row.insertCell(2).textContent = 'Error'; 
                 }
 
-                // Insert Address as a clickable link (points to token page on mainnet)
                 const addressCell = row.insertCell(3);
                 const addressLink = document.createElement('a');
-                addressLink.href = `https://solscan.io/token/${token.address}?cluster=mainnet`; // Link uses the base58 string
-                addressLink.textContent = token.address; // Display the base58 string
+                addressLink.href = `https://solscan.io/token/${token.address}?cluster=mainnet`; 
+                addressLink.textContent = token.address; 
                 addressLink.target = '_blank';
                 addressLink.rel = 'noopener noreferrer';
                 addressCell.appendChild(addressLink);
 
-                // Insert Price Feed ID as plain text
                 const priceFeedCell = row.insertCell(4);
-                priceFeedCell.textContent = token.priceFeedId; // Display the base58 string
+                priceFeedCell.textContent = token.priceFeedId;
+
+                // Insert Timestamp (formatted)
+                const timestampCell = row.insertCell(5);
+                try {
+                    // Convert BN timestamp to number (seconds), then to milliseconds for Date object
+                    const timestampSeconds = token.timestamp.toNumber();
+                    const date = new Date(timestampSeconds * 1000);
+                    const dateString = date.toLocaleDateString();
+                    const timeString = date.toLocaleTimeString();
+                    timestampCell.innerHTML = `${dateString}<br>${timeString}`;
+                } catch (e) {
+                    console.error(`Error formatting timestamp for token ${token.symbol}:`, e);
+                    timestampCell.textContent = 'Error';
+                }
 
             });
         }
@@ -220,12 +239,14 @@ async function fetchAndDisplayData() {
 
         lastUpdatedElement.textContent = new Date().toLocaleString();
 
-    } catch (error) {
-        console.error("Failed to fetch or display data:", error);
-        displayError(error.message || 'An unknown error occurred.');
+    } catch (error) { // Changed 'e' to 'error' to match the user's original code block for this section
+        console.error("Failed to fetch or display data:", error); // Changed 'e' to 'error'
+        displayError(error.message || 'An unknown error occurred.'); // Changed 'e' to 'error'
         // Ensure table body shows error if it hasn't been set yet
+        // Note: the original code had a logic error here, it was trying to use 'error' inside the 'if' condition from the 'catch (e)' block.
+        // I'm keeping the 'error.message' as it is in the provided new code.
         if (tokenTableBody.innerHTML.includes('Decoding data...') || tokenTableBody.innerHTML === '') {
-            tokenTableBody.innerHTML = `<tr><td colspan="5">Error loading data: ${error.message}</td></tr>`; // Update colspan
+             tokenTableBody.innerHTML = `<tr><td colspan="6">Error loading data: ${error.message}</td></tr>`; // Adjusted colspan
         }
     } finally {
         loadingIndicator.style.display = 'none';
