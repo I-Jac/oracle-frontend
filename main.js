@@ -7,7 +7,7 @@ window.Buffer = Buffer;
 
 // Configuration
 const SOLANA_RPC_URL = "https://api.devnet.solana.com";
-const PROGRAM_ID_STR = "ECQscJgjuLRXbPaYivPLjTJvqaF1LGWPNJp8LPGP5bKH"; // Your program ID as string
+const PROGRAM_ID_STR = "DP9kZHS77pbTuTHKNsaxqFjrUboFLGXvyCQsxYvWM26c"; // Your program ID as string
 const AGGREGATOR_SEED = "aggregator_v2"; // The seed used for the aggregator PDA
 
 let PROGRAM_ID = new PublicKey(PROGRAM_ID_STR);
@@ -125,7 +125,7 @@ async function fetchAndDisplayData() {
         const aggregatedData = [];
         let totalDominanceBN = new anchor.BN(0); // 1. Initialize total dominance accumulator
 
-        // --- Size of TokenInfo based on NEW serialization ---
+        // --- Size of TokenInfo based on Program Logs (146 bytes) ---
         // symbol(10) + dominance(u64, 8) + address(string padded, 64) + price_feed_id(PublicKey padded, 64)
         const tokenInfoSize = 10 + 8 + 64 + 64; // Back to 146 bytes
 
@@ -144,10 +144,10 @@ async function fetchAndDisplayData() {
             // price_feed_id: Next 64 bytes (offset 18 + 64 = 82) - Decode as padded PublicKey
             const priceFeedIdBytes64 = tokenData.subarray(82, 82 + 64);
 
-            // --- Decode Address (padded string) and PriceFeedID (padded PublicKey) ---
-            const addressString = bytesToString(addressBytes64); // Use original bytesToString
-            // Take only the first 32 bytes of the 64-byte PriceFeedID slice
-            const priceFeedIdPubkey = new PublicKey(priceFeedIdBytes64.subarray(0, 32));
+            // --- Decode Address (padded string) and PriceFeedID (padded string) ---
+            const addressString = bytesToString(addressBytes64);
+            // Directly decode the Price Feed ID string from its 64-byte buffer
+            const priceFeedIdString = bytesToString(priceFeedIdBytes64);
 
             totalDominanceBN = totalDominanceBN.add(dominanceBn);
 
@@ -155,7 +155,7 @@ async function fetchAndDisplayData() {
                 symbol: bytesToString(symbolBytes),
                 dominance: dominanceBn.toString(),
                 address: addressString, // Use the string decoded from 64 bytes
-                priceFeedId: priceFeedIdPubkey.toBase58(), // Use .toBase58() on the key from the first 32 bytes
+                priceFeedId: priceFeedIdString, // Use the string decoded from 64 bytes
                 authority: authorityPubkey.toBase58()
             });
             currentOffset += tokenInfoSize; // Use the updated size (146)
